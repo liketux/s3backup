@@ -3,13 +3,13 @@ package main
 import (
 	"github.com/alexflint/go-arg"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/daniel-cole/GoS3GFSBackup/download"
-	"github.com/daniel-cole/GoS3GFSBackup/log"
-	"github.com/daniel-cole/GoS3GFSBackup/rotate"
-	"github.com/daniel-cole/GoS3GFSBackup/rpolicy"
-	"github.com/daniel-cole/GoS3GFSBackup/s3client"
-	"github.com/daniel-cole/GoS3GFSBackup/upload"
-	"github.com/daniel-cole/GoS3GFSBackup/util"
+	"s3backup/download"
+	"s3backup/log"
+	"s3backup/rotate"
+	"s3backup/rpolicy"
+	"s3backup/s3client"
+	"s3backup/upload"
+	"s3backup/util"
 	"os"
 	"strconv"
 	"time"
@@ -24,6 +24,7 @@ type args struct {
 	PathToFile             string `arg:"help:The full path to the file to upload to the specified S3 bucket. Must be specified unless --rotateonly=true"`
 	S3FileName             string `arg:"help:The name of the file as it should appear in the S3 bucket. Must be specified unless --rotateonly=true"`
 	BucketDir              string `arg:"help:The directory chain in the bucket in which to upload the S3 object to. Must include the trailing slash"`
+	Endpoint               string `arg:"help:s3 provider endpoint amazonaws.com or storage.yandexcloud.net"`
 	Timeout                int    `arg:"help:The timeout to upload the specified file (seconds)"`
 	DryRun                 bool   `arg:"help:If enabled then no upload or rotation actions will be executed [default: false]"`
 	ConcurrentWorkers      int    `arg:"help:The number of threads to use when uploading the file to S3"`
@@ -43,9 +44,10 @@ func main() {
 	// Set default args
 	args := args{}
 	args.Timeout = 3600 // Default timeout to 1 hour for file upload
-	args.CredFile = ""
-	args.Profile = "default"
-	args.BucketDir = ""
+	args.CredFile = util.GetEnvString("AWS_CRED_FILE", "")
+	args.Profile = util.GetEnvString("AWS_PROFILE", "default")
+	args.BucketDir = util.GetEnvString("AWS_BUCKET", "")
+	args.Endpoint = util.GetEnvString("AWS_ENDPOINT", "amazonaws.com")
 	args.EnforceRetentionPeriod = true
 	args.DryRun = false
 	args.ConcurrentWorkers = 5
@@ -62,11 +64,11 @@ func main() {
 
 	log.Info.Println(`
 	######################################
-	#        GoS3GFSBackup Started       #
+	#        s3backup started            #
 	######################################
 	`)
 
-	svc, err := s3client.CreateS3Client(args.CredFile, args.Profile, args.Region)
+	svc, err := s3client.CreateS3Client(args.CredFile, args.Profile, args.Region, args.Endpoint)
 	if err != nil {
 		log.Error.Println(err)
 		os.Exit(1)
@@ -74,11 +76,11 @@ func main() {
 
 	runAction(svc, args)
 
-	log.Info.Println("Finished GoS3GFSBackup!")
+	log.Info.Println("Finished s3backup!")
 
 	log.Info.Println(`
 	######################################
-	#      GoS3GFSBackup Finished        #
+	#      s3backup finished             #
 	######################################
 	`)
 
@@ -112,7 +114,7 @@ func runBackupAction(svc *s3.S3, arguments args) {
 		os.Exit(1)
 	}
 
-	rotate.StartRotation(svc, arguments.Bucket, rotationPolicy, arguments.DryRun)
+	rotate.StartRotation(svc, arguments.Bucket, rotationPolicy, arguments.BucketDir, arguments.DryRun)
 	log.Info.Println("Upload and Rotation Complete!")
 
 }
@@ -129,7 +131,7 @@ func runUploadAction(svc *s3.S3, arguments args) {
 
 func runRotateAction(svc *s3.S3, arguments args) {
 	log.Info.Println("Rotate action specified, proceeding with rotation only")
-	rotate.StartRotation(svc, arguments.Bucket, getRotationPolicy(arguments), arguments.DryRun)
+	rotate.StartRotation(svc, arguments.Bucket, getRotationPolicy(arguments), arguments.BucketDir, arguments.DryRun)
 }
 
 func runDownloadAction(svc *s3.S3, arguments args) {
@@ -139,6 +141,7 @@ func runDownloadAction(svc *s3.S3, arguments args) {
 		DownloadLocation: arguments.PathToFile,
 		S3FileKey:        arguments.S3FileName,
 		BucketDir:        arguments.BucketDir,
+		Endpoint:         arguments.Endpoint,
 		Bucket:           arguments.Bucket,
 		NumWorkers:       arguments.ConcurrentWorkers,
 		PartSize:         arguments.PartSize,
@@ -156,6 +159,7 @@ func getUploadObject(arguments args, manipulate bool) upload.UploadObject {
 		PathToFile: arguments.PathToFile,
 		S3FileName: arguments.S3FileName,
 		BucketDir:  arguments.BucketDir,
+		Endpoint:   arguments.Endpoint,
 		Bucket:     arguments.Bucket,
 		Timeout:    time.Second * time.Duration(arguments.Timeout),
 		NumWorkers: arguments.ConcurrentWorkers,
@@ -166,7 +170,7 @@ func getUploadObject(arguments args, manipulate bool) upload.UploadObject {
 
 func getRotationPolicy(arguments args) rpolicy.RotationPolicy {
 	if !arguments.EnforceRetentionPeriod {
-		log.Warn.Println("GoS3GFSBackup is running with enforce retention period disabled. " +
+		log.Warn.Println("s3backup is running with enforce retention period disabled. " +
 			"This may result in objects being deleted that which have not exceeded the retention period")
 	}
 
@@ -187,12 +191,13 @@ func getRotationPolicy(arguments args) rpolicy.RotationPolicy {
 }
 
 func logArgs(arguments args) {
-	log.Info.Println("Loaded GoS3GFSBackup with arguments: ")
+	log.Info.Println("Loaded s3backup with arguments: ")
 
 	log.Info.Println("--credfile=" + arguments.CredFile)
 	log.Info.Println("--region=" + arguments.Region)
 	log.Info.Println("--bucket=" + arguments.Bucket)
 	log.Info.Println("--bucketdir=" + arguments.BucketDir)
+	log.Info.Println("--endpoint=" + arguments.Endpoint)
 	log.Info.Println("--profile=" + arguments.Profile)
 	log.Info.Println("--action=" + arguments.Action)
 	log.Info.Println("--pathtofile=" + arguments.PathToFile)

@@ -19,6 +19,6 @@ function check_pid_and_log() {
 
 check_pid_and_log &
 
-cd $GOPATH/src/github.com/daniel-cole/GoS3GFSBackup && go test ./...
+cd $GOPATH/src/github.com/liketux/s3backup && go test ./...
 
 echo "finished running tests"

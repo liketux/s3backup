@@ -3,11 +3,11 @@ package rotate
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/daniel-cole/GoS3GFSBackup/log"
-	"github.com/daniel-cole/GoS3GFSBackup/rpolicy"
-	"github.com/daniel-cole/GoS3GFSBackup/s3client"
-	"github.com/daniel-cole/GoS3GFSBackup/upload"
-	"github.com/daniel-cole/GoS3GFSBackup/util"
+	"s3backup/log"
+	"s3backup/rpolicy"
+	"s3backup/s3client"
+	"s3backup/upload"
+	"s3backup/util"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -1160,7 +1160,7 @@ func runMockBackup(t *testing.T, uploadDate time.Time, delay int, providedPolicy
 
 	time.Sleep(time.Second * time.Duration(delay))
 
-	return s3FileName, StartRotation(svc, bucket, providedPolicy, dryRun)
+	return s3FileName, StartRotation(svc, bucket, providedPolicy, "", dryRun)
 }
 
 func justUploadIt(s3FileName string, s3BucketDir string) (string, error) {

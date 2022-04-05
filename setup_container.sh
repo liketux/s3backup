@@ -15,7 +15,7 @@ centos:centos7 /usr/sbin/init
 
 DOCKER_CONTAINER_ID=$(docker ps | grep centos | awk '{print $1}')
 
-REPO=/gopath/src/github.com/daniel-cole/GoS3GFSBackup
+REPO=/gopath/src/github.com/liketux/s3backup
 
 docker exec -it $DOCKER_CONTAINER_ID /bin/bash -xec "bash -xe $REPO/run_tests_in_container.sh; echo -ne \"------\nTESTS COMPLETE\n\";"
 

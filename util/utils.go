@@ -5,13 +5,14 @@ import (
 	"errors"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/daniel-cole/GoS3GFSBackup/rpolicy"
-	"github.com/daniel-cole/GoS3GFSBackup/s3client"
+	"s3backup/rpolicy"
+	"s3backup/s3client"
 	"github.com/jinzhu/now"
 	"io"
 	"os"
 	"regexp"
 	"time"
+	"strconv"
 )
 
 // CheckPrefix checks if the prefix of a string matches the specified prefix.
@@ -34,8 +35,8 @@ func CleanUpMultiPartUploads(svc *s3.S3, bucket string) error {
 }
 
 // RetrieveSortedKeysByTime is a helper function to get all sorted keys
-func RetrieveSortedKeysByTime(svc *s3.S3, bucket string, prefix string) ([]s3client.BucketEntry, error) {
-	keys, err := s3client.GetKeysByPrefix(svc, bucket, prefix)
+func RetrieveSortedKeysByTime(svc *s3.S3, bucket string, prefix string, bucketDir string) ([]s3client.BucketEntry, error) {
+	keys, err := s3client.GetKeysByPrefix(svc, bucket, bucketDir + prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -174,4 +175,50 @@ func ComputeMD5Sum(filePath string) ([]byte, error) {
 	}
 
 	return hash.Sum(result), nil
+}
+
+
+// GetEnvString gets the environment variable for a key and if that env-var hasn't been set it returns the default value
+func GetEnvString(key string, defaultVal string) string {
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		value = defaultVal
+	}
+	return value
+}
+
+// GetEnvBool gets the environment variable for a key and if that env-var hasn't been set it returns the default value
+func GetEnvBool(key string, defaultVal bool) (bool, error) {
+	envvalue := os.Getenv(key)
+	if len(envvalue) == 0 {
+		value := defaultVal
+		return value, nil
+	}
+
+	value, err := strconv.ParseBool(envvalue)
+	return value, err
+}
+
+// GetEnvInt gets the environment variable for a key and if that env-var hasn't been set it returns the default value. This function is equivalent to ParseInt(s, 10, 0) to convert env-vars to type int
+func GetEnvInt(key string, defaultVal int) (int, error) {
+	envvalue := os.Getenv(key)
+	if len(envvalue) == 0 {
+		value := defaultVal
+		return value, nil
+	}
+
+	value, err := strconv.Atoi(envvalue)
+	return value, err
+}
+
+// GetEnvFloat gets the environment variable for a key and if that env-var hasn't been set it returns the default value. This function uses bitSize of 64 to convert string to float64.
+func GetEnvFloat(key string, defaultVal float64) (float64, error) {
+	envvalue := os.Getenv(key)
+	if len(envvalue) == 0 {
+		value := defaultVal
+		return value, nil
+	}
+
+	value, err := strconv.ParseFloat(envvalue, 64)
+	return value, err
 }

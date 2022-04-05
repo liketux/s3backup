@@ -1,6 +1,4 @@
-[![Build Status](https://travis-ci.org/daniel-cole/GoS3GFSBackup.svg?branch=master)](https://travis-ci.org/daniel-cole/GoS3GFSBackup)
-[![Go Report Card](https://goreportcard.com/badge/github.com/daniel-cole/GoS3GFSBackup)](https://goreportcard.com/report/github.com/daniel-cole/GoS3GFSBackup)
-# GoS3GFSBackup
+# s3backup
 This is a custom take on the GFS backup strategy adopted for AWS S3 which is intended to be run on a daily basis to backup objects in S3.
 
 The implementation uploads backups to S3 in the following way:
@@ -8,15 +6,14 @@ The implementation uploads backups to S3 in the following way:
 2. A weekly backup is taken every Monday (unless it's a monthly backup) with the prefix 'weekly_'. The maximum number of weekly backups kept by default is 4. When another weekly backup is created, the oldest weekly backup is rotated.
 3. A daily backup is taken once a day (unless it's a monthly or weekly backup) with the prefix 'daily_'. The maximum number of daily backups kept by default is 6. This ensures that 7 daily backups are kept as a weekly backup taken on Monday.
 
-:warning: ONLY backups in the root of the bucket will be rotated. :warning:
-
 ## CLI Arguments
-./GoS3GFSBackup -h
+./s3backup -h
 ```
 Options:
   --action   (required)     The intended action for the tool to run [backup|upload|download|rotate]
   --region   (required)     The AWS region to upload the specified file to
   --bucket   (required)     The S3 bucket to upload the specified file to
+  --endpoint                The S3 endpoint amazonaws.com, storage.yandexcloud.net, etc. [default: amazonaws.com]
   --credfile                The full path to the AWS CLI credential file if environment variables are not being used to provide the access id and key
   --profile                 The profile to use for the AWS CLI credential file [default: default]
   --pathtofile              The full path to the file to upload to the specified S3 bucket. Must be specified unless --rotateonly=true
@@ -37,40 +34,40 @@ Options:
 ### Backups
 #### Basic Usage
 ```sh
-./GoS3GFSBackup --action=backup --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbum --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar
+./s3backup --action=backup --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbum --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar
 ```
 
 #### Usage Custom Rotation Policy (10 daily backups, 5 weekly backups with enforced retention period applied)
 ```sh
-./GoS3GFSBackup --action=backup --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbum --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar --enforceretentionperiod=true --dailyretentioncount=10 --dailyretentionperiod=240 --weeklyretentioncount=5 --weeklyretentionperiod=120
+./s3backup --action=backup --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbum --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar --enforceretentionperiod=true --dailyretentioncount=10 --dailyretentionperiod=240 --weeklyretentioncount=5 --weeklyretentionperiod=120
 ```
 
 #### Usage with 5 hour timeout
 ```sh
-./GoS3GFSBackup --action=backup --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbum --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar --timeout=18000
+./s3backup --action=backup --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbum --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar --timeout=18000
 ```
 
 #### Dry run
 ```sh
-./GoS3GFSBackup --action=backup --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbum --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar --dryrun=true
+./s3backup --action=backup --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbum --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar --dryrun=true
 ```
 
 ### Uploading
 #### Basic Usage
 ```sh
-./GoS3GFSBackup --action=upload --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=myFileNameThatWontChangeInBucket --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar
+./s3backup --action=upload --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=myFileNameThatWontChangeInBucket --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar
 ```
 
 ### Rotation Only
 #### Basic Usage
 ```sh
-./GoS3GFSBackup --action=rotate --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbum --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar
+./s3backup --action=rotate --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbum --pathtofile=/var/tmp/uploads/portfolioAlbum2007.tar
 ```
 
 ### Download
 #### Basic Usage
 ```sh
-./GoS3GFSBackup --action=download --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbumInS3 --pathtofile=/var/tmp/uploads/mydownloadedPortfolioAlbum
+./s3backup --action=download --credfile=/backupuser/.aws_creds --region=us-east-1 --bucket=mybucket --s3filename=portfolioAlbumInS3 --pathtofile=/var/tmp/uploads/mydownloadedPortfolioAlbum
 ```
 
 
@@ -116,6 +113,7 @@ If you're providing credentials via env:
 AWS_ACCESS_KEY_ID=<AWS access key ID>
 AWS_SECRET_ACCESS_KEY=<AWS secret access key>
 AWS_REGION=<AWS region where the buckets for testing exist>
+AWS_ENDPOINT=<S3 enppoint>
 AWS_BUCKET_UPLOAD=<AWS bucket specifically for upload testing>
 AWS_BUCKET_ROTATION=<AWS bucket specifically for rotation testing>
 AWS_BUCKET_FORBIDDEN=<AWS bucket that user running tests does not have permission to access>

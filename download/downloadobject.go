@@ -6,6 +6,7 @@ type DownloadObject struct {
 	S3FileKey        string
 	Bucket           string
 	BucketDir        string
+	Endpoint         string
 	NumWorkers       int
 	PartSize         int
 }

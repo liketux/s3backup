@@ -2,18 +2,18 @@ package rotate
 
 import (
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/daniel-cole/GoS3GFSBackup/log"
-	"github.com/daniel-cole/GoS3GFSBackup/rpolicy"
-	"github.com/daniel-cole/GoS3GFSBackup/s3client"
-	"github.com/daniel-cole/GoS3GFSBackup/util"
+	"s3backup/log"
+	"s3backup/rpolicy"
+	"s3backup/s3client"
+	"s3backup/util"
 	"time"
 )
 
 // StartRotation initiates the GFS rotation with the provided policy
-func StartRotation(svc *s3.S3, bucket string, policy rpolicy.RotationPolicy, dryRun bool) []string {
+func StartRotation(svc *s3.S3, bucket string, policy rpolicy.RotationPolicy, bucketDir string, dryRun bool) []string {
 	log.Info.Println(`
 	######################################
-	#  GoS3GFSBackup Rotation Started!   #
+	#  s3backup Rotation Started!   #
 	######################################
 	`)
 
@@ -29,7 +29,7 @@ func StartRotation(svc *s3.S3, bucket string, policy rpolicy.RotationPolicy, dry
 	`)
 
 	// Daily rotation
-	for _, key := range keyRotation(svc, bucket, policy.DailyRetentionPeriod, policy.DailyRetentionCount, policy.DailyPrefix, policy.EnforceRetentionPeriod, dryRun) {
+	for _, key := range keyRotation(svc, bucket, policy.DailyRetentionPeriod, policy.DailyRetentionCount, policy.DailyPrefix, bucketDir, policy.EnforceRetentionPeriod, dryRun) {
 		deletedKeys = append(deletedKeys, key)
 	}
 
@@ -40,7 +40,7 @@ func StartRotation(svc *s3.S3, bucket string, policy rpolicy.RotationPolicy, dry
 	`)
 
 	// Weekly rotation
-	for _, key := range keyRotation(svc, bucket, policy.WeeklyRetentionPeriod, policy.WeeklyRetentionCount, policy.WeeklyPrefix, policy.EnforceRetentionPeriod, dryRun) {
+	for _, key := range keyRotation(svc, bucket, policy.WeeklyRetentionPeriod, policy.WeeklyRetentionCount, policy.WeeklyPrefix, bucketDir, policy.EnforceRetentionPeriod, dryRun) {
 		deletedKeys = append(deletedKeys, key)
 	}
 
@@ -62,8 +62,8 @@ func StartRotation(svc *s3.S3, bucket string, policy rpolicy.RotationPolicy, dry
 
 // Any keys with prefix _monthly should have a life cycle policy to move into glacier after 30 days
 // If enforceRetentionPeriod is set to true then no keys that are
-func keyRotation(svc *s3.S3, bucket string, retentionPeriod time.Duration, retentionCount int, prefix string, enforceRetentionPeriod bool, dryRun bool) []string {
-	sortedKeys, err := sortKeysAndLogInfo(svc, bucket, prefix) // Requirement that the keys are sorted before rotating
+func keyRotation(svc *s3.S3, bucket string, retentionPeriod time.Duration, retentionCount int, prefix string, bucketDir string, enforceRetentionPeriod bool, dryRun bool) []string {
+	sortedKeys, err := sortKeysAndLogInfo(svc, bucket, prefix, bucketDir) // Requirement that the keys are sorted before rotating
 
 	log.Info.Println(`
 	######################################
@@ -142,7 +142,7 @@ func keyRotation(svc *s3.S3, bucket string, retentionPeriod time.Duration, reten
 
 // Returns an array of sorted keys by LastModified date.
 // The first value in the array is the most recently modified key
-func sortKeysAndLogInfo(svc *s3.S3, bucket string, prefix string) ([]s3client.BucketEntry, error) {
+func sortKeysAndLogInfo(svc *s3.S3, bucket string, prefix string, bucketDir string) ([]s3client.BucketEntry, error) {
 	log.Info.Println(`
 	######################################
 	#        Retrieving Key Info!        #
@@ -150,7 +150,7 @@ func sortKeysAndLogInfo(svc *s3.S3, bucket string, prefix string) ([]s3client.Bu
 	`)
 
 	log.Info.Printf("Attempting to retrieve list of keys with prefix: '%s'\n", prefix)
-	sortedKeys, err := util.RetrieveSortedKeysByTime(svc, bucket, prefix)
+	sortedKeys, err := util.RetrieveSortedKeysByTime(svc, bucket, prefix, bucketDir)
 	if err != nil {
 		log.Error.Printf("Failed to retrieve keys with prefix: '%s' from bucket: %s\n", prefix, bucket)
 		return nil, err
